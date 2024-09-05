@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebGL 03</title>
+    <title>WebGL 03 - Colored Points</title>
   </head>
   <body onload="start();">
     <canvas width="680" height="480" id="webglCanvas"></canvas>
@@ -22,10 +22,12 @@
       `;
 
       const FSHADER_SOURCE = `
+        precision mediump float;
+        uniform vec4 u_FragColor;
             
-          void main(){
-              gl_FragColor = vec4(1, 0, 0, 1);
-          }
+        void main(){
+            gl_FragColor = u_FragColor;
+        }
       `;
 
       function start() {
@@ -77,6 +79,7 @@
           return;
         }
 
+        // Create the program
         const program = gl.createProgram();
 
         if (!program) {
@@ -102,9 +105,16 @@
         // Get the storage location of attribute variable
         const a_Position = gl.getAttribLocation(program, "a_Position");
         const a_PointSize = gl.getAttribLocation(program, "a_PointSize");
-        if (a_Position < 0 && a_PointSize < 0) {
+        const u_FragColor = gl.getUniformLocation(program, "u_FragColor");
+        if (a_Position < 0 && a_PointSize < 0 ) {
           console.error(
-            "Failed to get the storage location of a_Position or a_PointSize"
+            "Failed to get the storage location of a_Position || a_PointSize"
+          );
+          return;
+        }
+        if (!u_FragColor) {
+          console.error(
+            "Failed to get u_FragColor variable"
           );
           return;
         }
@@ -114,7 +124,7 @@
 
         // Handler Click
         canvas.onmousedown = function (ev) {
-          click(ev, gl, canvas, a_Position);
+          click(ev, gl, canvas, a_Position, u_FragColor);
         };
 
         gl.clearColor(0, 1, 0, 1);
@@ -122,8 +132,9 @@
       }
 
       var g_points = [];
+      var g_color = [];
 
-      function click(ev, gl, canvas, a_Position) {
+      function click(ev, gl, canvas, a_Position, u_FragColor) {
         let x = ev.clientX;
         let y = ev.clientY;
         let rect = ev.target.getBoundingClientRect();
@@ -131,17 +142,31 @@
         x = (x - rect.left - canvas.width / 2) / (canvas.width / 2);
         y = (canvas.height / 2 - (y - rect.top)) / (canvas.height / 2);
 
-        console.log("click", x, y);
+        g_points.push([x, y]);
 
-        g_points.push(x);
-        g_points.push(y);
+        // Store the coordinates to g_color arr
+        if (x >= 0.0 && y >= 0.0) {
+          // First quadrant
+          g_color.push([1.0, 0.0, 0.0, 1.0]); // Red
+        } else if (x < 0.0 && y >= 0.0) {
+          // Third quadrant
+          g_color.push([0.0, 0.0, 1.0, 1.0]); // Blue
+        } else {
+          // Others
+          g_color.push([1.0, 1.0, 1.0, 1.0]); // White
+        }
 
         // Clear canvas
-        // gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT);
 
         // Redraw all points
-        for (let i = 0; i < g_points.length; i += 2) {
-          gl.vertexAttrib3f(a_Position, g_points[i], g_points[i + 1], 0.0);
+        for (let i = 0; i < g_points.length; i += 1) {
+          var xy = g_points[i];
+          var rgba = g_color[i];
+
+          gl.vertexAttrib3f(a_Position, xy[0], xy[1], 0.0);
+          gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+
           gl.drawArrays(gl.POINTS, 0, 1);
         }
       }
